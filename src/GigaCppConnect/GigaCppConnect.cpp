@@ -2,11 +2,14 @@
 //
 
 #include "GigaCppConnect.h"
-
-using namespace std;
+#include <memory>
+#include <iostream>
 
 int main()
 {
-	cout << "Hello CMake." << endl;
+	MockClient client;
+	std::cout << Get_test(client);
+	std::cout << Post_test(client);
+	std::cout << "Hello CMake." << "\n";
 	return 0;
 }
