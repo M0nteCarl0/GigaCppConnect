@@ -1,13 +1,51 @@
-﻿
+﻿#ifndef GIGACPPCONNECT
+#define GIGACPPCONNECT
+
+
 #define GIGACPPCONNECT_VERSION_MAJOR 0
 #define GIGACPPCONNECT_VERSION_MINOR 1
 #define GIGACPPCONNECT_VERSION_PATCH 0
+#define GIGACPPCONNECT_VERSION ((GIGACPPCONNECT_VERSION_MAJOR << 16) | (GIGACPPCONNECT_VERSION_MINOR << 8) | GIGACPPCONNECT_VERSION_PATCH)
 
 
 #include <iostream>
 #include <string>
 #include <format>
+#include <random>
+#include <regex>
 
+
+//Class for generating random UUID for RqUUID
+class RqUUIDGenerator {
+public:
+	std::string GenerateRqUUID() {
+		const std::regex pattern("([0-9a-fA-F-]{36})");
+		std::string uuid = GenerateRandomUUID();
+		while (!std::regex_match(uuid, pattern)) {
+			uuid = GenerateRandomUUID();
+		}
+		return uuid;
+	}
+
+private:
+	std::string GenerateRandomUUID() {
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_int_distribution<> dis(0, 15);
+
+		const char* hexChars = "0123456789abcdef";
+		std::string uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+		for (int i = 0; i < 36; ++i) {
+			if (uuid[i] == 'x') {
+				uuid[i] = hexChars[dis(gen)];
+			}
+			else if (uuid[i] == 'y') {
+				uuid[i] = hexChars[(dis(gen) & 0x3) | 0x8];
+			}
+		}
+		return uuid;
+	}
+};
 
 ///CRTP class template C++17 for class http::client
 template <typename Backend>
@@ -60,8 +98,7 @@ template <typename T> std::string Get_test(base_http_client<T>& client) {
 
 
 
-
-
+#endif
 
 
 
