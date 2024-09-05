@@ -10,9 +10,9 @@
 
 #include <iostream>
 #include <string>
-#include <format>
 #include <random>
 #include <regex>
+#include <sstream>
 
 
 //Class for generating random UUID for RqUUID
@@ -70,14 +70,19 @@ public:
 	std::string Get_impl(const std::string& url) {
 		std::cout << "Get url: " << url << "\n";
 		_url = url;
-		_result = std::format("GET Target url {}\n", url);
+        std::stringstream ss;
+        ss << "GET Target url " << url << "\n";
+        _result = ss.str();
+
 		return _result;
 	}
 
 	std::string Post_impl(const std::string& url, const std::string& body) {
 		_url = url;
 		_body = body;
-		_result = std::format("POST Target url {}\n bodu: {}\n", url, body);
+        std::stringstream ss;
+        ss << "POST Target url " << url << "\n body: " << body;
+        _result = ss.str();
 		return _result;
 	}
 
@@ -95,8 +100,6 @@ template <typename T> std::string Post_test(base_http_client<T>& client) {
 template <typename T> std::string Get_test(base_http_client<T>& client) {
 	return client.Get("test");
 };
-
-
 
 #endif
 
