@@ -8,12 +8,17 @@
 class Response
 {
 public:
-	int status;
-	std::string message;
-	std::string data;
+	int status{0};
+	std::string message{""};
+	std::string data{""};
 };	
 
-template class  Request
+class Request
+{
+public:
+    std::string message{""};
+    std::string data{""};
+};
 
 #define GIGACPP_TYPES
 #endif
