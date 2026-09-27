@@ -8,13 +8,6 @@
 **GigaCppConnect** is a modern C++20 framework for integrating and communicating with Sber's **GigaChat LLM** service.
 It provides a type-safe interface, automatic OAuth 2.0 token management, token counting, account balance checks, multi-turn chat completions, and Kandinsky image generation and downloads.
 
-## Pre-built Releases
-
-Pre-compiled standalone packages with all dependencies are available on the [GitHub Releases](https://github.com/M0nteCarl0/GigaCppConnect/releases) page:
-- **Windows (x86_64)**: `GigaCppConnect-v0.2.0-windows-x86_64.zip` (standalone `.exe` + static `.lib` + headers, zero external DLL dependencies)
-- **Linux (x86_64)**: `GigaCppConnect-v0.2.0-linux-x86_64.tar.gz` (standalone binary + `run.sh` + bundled runtime libraries + static library + headers)
-- **Linux (ARM64 / aarch64)**: `GigaCppConnect-v0.2.0-linux-aarch64.tar.gz` (standalone binary + `run.sh` + bundled runtime libraries + static library + headers, tested on NVIDIA Jetson / Ubuntu 22.04 LTS)
-
 ## Implemented API Features
 
 - [x] **OAuth 2.0 Authentication**: Automatic access token acquisition and refresh before expiration (`POST /oauth`)
