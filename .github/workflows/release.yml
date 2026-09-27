@@ -1,0 +1,216 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag (e.g. v0.2.0)'
+        required: true
+        default: 'v0.2.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows (x86_64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set Release Tag
+        id: vars
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          echo "TAG_NAME=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TAG_NAME=$TAG" >> "$GITHUB_ENV"
+
+      - name: Configure CMake (MSVC static CRT)
+        run: |
+          cmake -B build -S src `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DGIGACPP_STATIC_CRT=ON
+
+      - name: Build
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Install to staging directory
+        run: |
+          cmake --install build --config Release --prefix staging
+
+      - name: Copy Documentation and Licenses
+        run: |
+          Copy-Item README.md, LICENSE staging/
+
+      - name: Package Windows Release (ZIP)
+        shell: pwsh
+        run: |
+          $packageName = "GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-windows-x86_64.zip"
+          Compress-Archive -Path staging/* -DestinationPath $packageName
+          echo "PACKAGED_FILE=$packageName" >> $env:GITHUB_ENV
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-windows
+          path: GigaCppConnect-*-windows-x86_64.zip
+
+  build-linux:
+    name: Build Linux (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set Release Tag
+        id: vars
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          echo "TAG_NAME=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TAG_NAME=$TAG" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libcurl4-openssl-dev
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -S src \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGIGACPP_STATIC_STDLIB=ON \
+            -DCMAKE_INSTALL_RPATH="\$ORIGIN/../lib:\$ORIGIN/lib:\$ORIGIN"
+
+      - name: Build
+        run: |
+          cmake --build build --config Release -j$(nproc)
+
+      - name: Install to staging directory
+        run: |
+          cmake --install build --prefix staging
+
+      - name: Bundle dependencies (libcurl & runtime libraries)
+        shell: bash
+        run: |
+          mkdir -p staging/lib
+          # Extract dynamic library dependencies of GigaCppConnect and bundle non-glibc shared libraries
+          ldd staging/bin/GigaCppConnect | grep "=>" | awk '{print $3}' | while read -r lib; do
+            if [ -f "$lib" ]; then
+              base=$(basename "$lib")
+              case "$base" in
+                libc.*|libm.*|libdl.*|libpthread.*|ld-linux*|librt.*)
+                  # Preserve system glibc/kernel loader compatibility
+                  ;;
+                *)
+                  cp -L "$lib" staging/lib/ 2>/dev/null || true
+                  ;;
+              esac
+            fi
+          done
+
+          # Create a launcher script in the package root
+          printf '%s\n' \
+            '#!/usr/bin/env bash' \
+            'SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' \
+            'export LD_LIBRARY_PATH="$SCRIPT_DIR/lib:${LD_LIBRARY_PATH:-}"' \
+            'exec "$SCRIPT_DIR/bin/GigaCppConnect" "$@"' \
+            > staging/run.sh
+          chmod +x staging/run.sh
+          chmod +x staging/bin/GigaCppConnect
+
+      - name: Copy Documentation and Licenses
+        run: |
+          cp README.md LICENSE staging/
+
+      - name: Package Linux Release (tar.gz)
+        shell: bash
+        run: |
+          PKG_NAME="GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-linux-x86_64.tar.gz"
+          tar -czvf "$PKG_NAME" -C staging .
+          echo "PACKAGED_FILE=$PKG_NAME" >> "$GITHUB_ENV"
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-linux
+          path: GigaCppConnect-*-linux-x86_64.tar.gz
+
+  release:
+    name: Publish Release
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set Release Tag
+        id: vars
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          echo "TAG_NAME=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TAG_NAME=$TAG" >> "$GITHUB_ENV"
+
+      - name: Create dist directory
+        run: mkdir -p dist
+
+      - name: Download Windows Package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-windows
+          path: dist
+
+      - name: Download Linux Package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-linux
+          path: dist
+
+      - name: Generate Checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum GigaCppConnect-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.TAG_NAME }}
+          name: GigaCppConnect ${{ steps.vars.outputs.TAG_NAME }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/GigaCppConnect-*-windows-x86_64.zip
+            dist/GigaCppConnect-*-linux-x86_64.tar.gz
+            dist/SHA256SUMS.txt
+          body: |
+            ## GigaCppConnect ${{ steps.vars.outputs.TAG_NAME }}
+
+            First release of **GigaCppConnect** — modern C++20 client framework for Sber's GigaChat LLM API.
+
+            ### ✨ Key Features
+            - **Modern C++20 Core**: Type-safe structures, RAII, chrono, UUID v4 generation, Base64 encoding.
+            - **OAuth 2.0 Management**: Automatic token acquisition, caching, and auto-refresh before expiry (`POST /oauth`).
+            - **Chat Completions**: Multi-turn dialogs, system prompts, temperature, streaming/non-streaming (`POST /chat/completions`).
+            - **Kandinsky Image Generation & Download**: High-resolution image generation and direct binary file downloading (`GenerateImage`, `DownloadImage`, `SaveImageToFile`).
+            - **Models & Balance**: Query available LLM models (`GET /models`), account balance and token limits (`GET /balance`).
+            - **Token Counting**: Compute prompt token count and character length (`POST /tokens/count`).
+            - **Files API**: Upload, query, and download files (`GET /files`, `GET /files/{id}`).
+            - **Cross-Platform**:
+              - Windows: Native WinHTTP backend with static MSVC CRT (`/MT`) — **zero external DLL dependencies**.
+              - Linux: `libcurl` backend with static C++ standard library and bundled runtime dependencies.
+
+            ### 📦 Release Assets
+            | Archive | Platform | Contents |
+            |---|---|---|
+            | `GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-windows-x86_64.zip` | Windows x86_64 | Standalone `bin/GigaCppConnect.exe`, `lib/gigachat_client.lib`, C++ headers in `include/` |
+            | `GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-linux-x86_64.tar.gz` | Linux x86_64 | Standalone `bin/GigaCppConnect`, `run.sh` launcher, bundled `lib/`, `libgigachat_client.a`, C++ headers in `include/` |
+            | `SHA256SUMS.txt` | All | SHA-256 integrity checksums for release verification |
