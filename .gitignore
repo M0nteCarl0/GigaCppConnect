@@ -1,0 +1,77 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+/GigaCppConnect
+
+# Debug / symbols
+*.pdb
+*.ilk
+*.exp
+
+# CMake build directories and cache
+build/
+build-*/
+bin/
+out/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.ninja
+.ninja_*
+CMakePresets.json.user
+
+# Legacy / IDE build dirs in repo
+src/cmake-build-*/
+src/out/
+src/.idea/
+src/.vscode/
+
+# IDE and Editor files
+.idea/
+.vscode/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Test generated images and temp files
+*.jpg
+*.jpeg
+*.png
+*.tmp
+*.log
