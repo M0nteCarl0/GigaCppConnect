@@ -259,14 +259,26 @@ jobs:
           body: |
             Modern C++20 client framework for Sber's GigaChat LLM API.
 
-            ### Packages
+            ### Features
+            - **OAuth 2.0**: Automatic token acquisition, caching, and auto-refresh
+            - **Chat Completions**: Multi-turn dialogs, system prompts, streaming and non-streaming
+            - **Image Generation**: Kandinsky text-to-image generation and direct binary downloads
+            - **Models & Usage**: Model listing, prompt token counting, and account balance inspection
+            - **Zero-Config**: Native Windows WinHTTP (no external DLLs) and Linux libcurl
 
-            All packages are standalone and include pre-built binaries, static libraries, C++ headers, and runtime dependencies:
+            ### Supported Platforms
+            | OS | Architecture | Backend | Status |
+            |---|---|---|---|
+            | **Windows** (10 / 11 / Server) | `x86_64` (AMD64) | WinHTTP (static CRT) | Verified |
+            | **Linux** (Ubuntu, Debian, RHEL) | `x86_64` (AMD64) | libcurl + OpenSSL | Verified |
+            | **Linux** (NVIDIA Jetson, SBCs) | `aarch64` (ARM64) | libcurl + OpenSSL | Verified on hardware |
+
+            ### Packages
+            Standalone archives with pre-built binaries, static libraries, C++ headers, and runtime dependencies:
 
             - **Windows (`x86_64`)**: `GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-windows-x86_64.zip`
             - **Linux (`x86_64`)**: `GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-linux-x86_64.tar.gz`
             - **Linux (`aarch64` / ARM64)**: `GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-linux-aarch64.tar.gz`
 
             ### Verification
-
             SHA-256 checksums are provided in `SHA256SUMS.txt`.
