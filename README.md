@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/M0nteCarl0/GigaCppConnect/actions/workflows/ci.yml/badge.svg)](https://github.com/M0nteCarl0/GigaCppConnect/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/M0nteCarl0/GigaCppConnect)](https://github.com/M0nteCarl0/GigaCppConnect/releases)
+[![Downloads](https://img.shields.io/github/downloads/M0nteCarl0/GigaCppConnect/total)](https://github.com/M0nteCarl0/GigaCppConnect/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 
