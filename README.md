@@ -13,6 +13,7 @@ It provides a type-safe interface, automatic OAuth 2.0 token management, token c
 Pre-compiled standalone packages with all dependencies are available on the [GitHub Releases](https://github.com/M0nteCarl0/GigaCppConnect/releases) page:
 - **Windows (x86_64)**: `GigaCppConnect-v0.2.0-windows-x86_64.zip` (standalone `.exe` + static `.lib` + headers, zero external DLL dependencies)
 - **Linux (x86_64)**: `GigaCppConnect-v0.2.0-linux-x86_64.tar.gz` (standalone binary + `run.sh` + bundled runtime libraries + static library + headers)
+- **Linux (ARM64 / aarch64)**: `GigaCppConnect-v0.2.0-linux-aarch64.tar.gz` (standalone binary + `run.sh` + bundled runtime libraries + static library + headers, tested on NVIDIA Jetson / Ubuntu 22.04 LTS)
 
 ## Implemented API Features
 
@@ -25,14 +26,14 @@ Pre-compiled standalone packages with all dependencies are available on the [Git
 - [x] **Image Generation & Download**: Integrated Kandinsky generation, parsing, and binary download (`GenerateImage`, `DownloadImage`, `SaveImageToFile`)
 - [x] **Embeddings**: Generate vector embeddings for text inputs (`POST /embeddings`)
 - [x] **Flexible Credentials**: Initialize with `Client ID` + `Client Secret` or Base64 `Authorization Key`
-- [x] **Cross-Platform Support**: Native Windows `WinHTTP` (zero external dependencies) and Linux / WSL (`libcurl`)
+- [x] **Cross-Platform Support**: Native Windows `WinHTTP` (zero external dependencies) and Linux x86_64 / ARM64 (`libcurl`)
 - [x] **Mock Backend**: Offline `MockClient` for isolated unit testing
 
 ## Requirements
 
 - **C++20 compliant compiler**:
   - Windows: MSVC 2022 (v143+) / Clang 18+ / MinGW GCC 13+
-  - Linux / WSL: GCC 11+ / Clang 14+ with `libcurl4-openssl-dev`
+  - Linux (x86_64 & ARM64 / aarch64): GCC 11+ / Clang 14+ with `libcurl4-openssl-dev`
 - **CMake**: 3.20 or newer
 
 ## Build and Run

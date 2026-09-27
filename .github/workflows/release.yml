@@ -61,7 +61,7 @@ jobs:
           name: package-windows
           path: GigaCppConnect-*-windows-x86_64.zip
 
-  build-linux:
+  build-linux-x86_64:
     name: Build Linux (x86_64)
     runs-on: ubuntu-latest
     steps:
@@ -100,13 +100,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p staging/lib
-          # Extract dynamic library dependencies of GigaCppConnect and bundle non-glibc shared libraries
           ldd staging/bin/GigaCppConnect | grep "=>" | awk '{print $3}' | while read -r lib; do
             if [ -f "$lib" ]; then
               base=$(basename "$lib")
               case "$base" in
                 libc.*|libm.*|libdl.*|libpthread.*|ld-linux*|librt.*)
-                  # Preserve system glibc/kernel loader compatibility
                   ;;
                 *)
                   cp -L "$lib" staging/lib/ 2>/dev/null || true
@@ -115,7 +113,6 @@ jobs:
             fi
           done
 
-          # Create a launcher script in the package root
           printf '%s\n' \
             '#!/usr/bin/env bash' \
             'SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' \
@@ -129,22 +126,83 @@ jobs:
         run: |
           cp README.md LICENSE staging/
 
-      - name: Package Linux Release (tar.gz)
+      - name: Package Linux x86_64 Release (tar.gz)
         shell: bash
         run: |
           PKG_NAME="GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-linux-x86_64.tar.gz"
           tar -czvf "$PKG_NAME" -C staging .
           echo "PACKAGED_FILE=$PKG_NAME" >> "$GITHUB_ENV"
 
-      - name: Upload Linux Artifact
+      - name: Upload Linux x86_64 Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: package-linux
+          name: package-linux-x86_64
           path: GigaCppConnect-*-linux-x86_64.tar.gz
+
+  build-linux-arm64:
+    name: Build Linux (aarch64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set Release Tag
+        id: vars
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          echo "TAG_NAME=$TAG" >> "$GITHUB_OUTPUT"
+          echo "TAG_NAME=$TAG" >> "$GITHUB_ENV"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build & Package in ARM64 container
+        shell: bash
+        run: |
+          TAG="${{ steps.vars.outputs.TAG_NAME }}"
+          docker run --rm --platform linux/arm64 \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            arm64v8/ubuntu:22.04 \
+            bash -c "
+              apt-get update && apt-get install -y build-essential cmake libcurl4-openssl-dev
+              rm -rf build-arm staging-arm
+              cmake -B build-arm -S src -DCMAKE_BUILD_TYPE=Release -DGIGACPP_STATIC_STDLIB=ON -DCMAKE_INSTALL_RPATH='\\\$ORIGIN/../lib:\\\$ORIGIN/lib:\\\$ORIGIN'
+              cmake --build build-arm -j\$(nproc)
+              cmake --install build-arm --prefix staging-arm
+
+              mkdir -p staging-arm/lib
+              ldd staging-arm/bin/GigaCppConnect | grep '=>' | awk '{print \\\$3}' | while read -r lib; do
+                if [ -f \"\\\$lib\" ]; then
+                  base=\$(basename \"\\\$lib\")
+                  case \"\\\$base\" in
+                    libc.*|libm.*|libdl.*|libpthread.*|ld-linux*|librt.*) ;;
+                    *) cp -L \"\\\$lib\" staging-arm/lib/ 2>/dev/null || true ;;
+                  esac
+                fi
+              done
+
+              printf '%s\n' \
+                '#!/usr/bin/env bash' \
+                'SCRIPT_DIR=\"\$(cd \"\$(dirname \"\${BASH_SOURCE[0]}\")\" && pwd)\"' \
+                'export LD_LIBRARY_PATH=\"\\\$SCRIPT_DIR/lib:\${LD_LIBRARY_PATH:-}\"' \
+                'exec \"\\\$SCRIPT_DIR/bin/GigaCppConnect\" \"\\\$@\"' \
+                > staging-arm/run.sh
+              chmod +x staging-arm/run.sh staging-arm/bin/GigaCppConnect
+              cp README.md LICENSE staging-arm/
+              tar -czvf GigaCppConnect-${TAG}-linux-aarch64.tar.gz -C staging-arm .
+            "
+
+      - name: Upload Linux ARM64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-linux-arm64
+          path: GigaCppConnect-*-linux-aarch64.tar.gz
 
   release:
     name: Publish Release
-    needs: [build-windows, build-linux]
+    needs: [build-windows, build-linux-x86_64, build-linux-arm64]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -167,10 +225,16 @@ jobs:
           name: package-windows
           path: dist
 
-      - name: Download Linux Package
+      - name: Download Linux x86_64 Package
         uses: actions/download-artifact@v4
         with:
-          name: package-linux
+          name: package-linux-x86_64
+          path: dist
+
+      - name: Download Linux ARM64 Package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-linux-arm64
           path: dist
 
       - name: Generate Checksums
@@ -190,6 +254,7 @@ jobs:
           files: |
             dist/GigaCppConnect-*-windows-x86_64.zip
             dist/GigaCppConnect-*-linux-x86_64.tar.gz
+            dist/GigaCppConnect-*-linux-aarch64.tar.gz
             dist/SHA256SUMS.txt
           body: |
             ## GigaCppConnect ${{ steps.vars.outputs.TAG_NAME }}
@@ -206,11 +271,12 @@ jobs:
             - **Files API**: Upload, query, and download files (`GET /files`, `GET /files/{id}`).
             - **Cross-Platform**:
               - Windows: Native WinHTTP backend with static MSVC CRT (`/MT`) — **zero external DLL dependencies**.
-              - Linux: `libcurl` backend with static C++ standard library and bundled runtime dependencies.
+              - Linux (x86_64 & ARM64 / aarch64): `libcurl` backend with static C++ standard library and bundled runtime dependencies. Tested on Ubuntu x86_64 and NVIDIA Jetson ARM64.
 
             ### 📦 Release Assets
             | Archive | Platform | Contents |
             |---|---|---|
             | `GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-windows-x86_64.zip` | Windows x86_64 | Standalone `bin/GigaCppConnect.exe`, `lib/gigachat_client.lib`, C++ headers in `include/` |
             | `GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-linux-x86_64.tar.gz` | Linux x86_64 | Standalone `bin/GigaCppConnect`, `run.sh` launcher, bundled `lib/`, `libgigachat_client.a`, C++ headers in `include/` |
+            | `GigaCppConnect-${{ steps.vars.outputs.TAG_NAME }}-linux-aarch64.tar.gz` | Linux ARM64 (aarch64) | Standalone `bin/GigaCppConnect`, `run.sh` launcher, bundled `lib/`, `libgigachat_client.a`, C++ headers in `include/` |
             | `SHA256SUMS.txt` | All | SHA-256 integrity checksums for release verification |
